@@ -1,0 +1,154 @@
+---
+title: "Machine Learning Analysis of Human Activity"
+author: "Lakshmy Priya"
+date: "4 March 2016"
+output: html_document
+---
+
+##Introduction
+
+The goal of this analysis is to predict the manner in which 6 participants performed a series of exercies. The classification is recorded as the "classe" variable in the training set and ranges from A to E, where A means the exercise was performed correctly, and each letter B-E specifies a certain common mistake. The final model chosen will be tested on 20 cases. 
+
+The data is sourced from http://groupware.les.inf.puc-rio.br/har
+
+
+##Loading the data 
+
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+```{r}
+library(caret)
+library(pamr)
+library(rattle)
+library(rpart)
+library(randomForest)
+library(foreach)
+library(e1071)
+
+training <- read.csv("pml-training.csv", na.strings = c("NA",""))
+testing <- read.csv("pml-testing.csv",na.strings = c("NA",""))
+dim(training)
+summary(complete.cases(training))
+
+```
+
+There are 160 variables in the original set. We will cut this down to the required variables as well as columns that do not contain a large amount of NAs
+
+```{r}
+## Removing near empty columns
+
+cols <- NULL
+for (i in 1:160){
+cols[i] <- sum(is.na(training[i]))
+}
+
+training2 <- training[cols<19000]
+summary(complete.cases(training2))
+
+## The first 7 columns are not predictors and contain timestamps, index, and participant names
+
+final_train <- training2[8:60]
+names <- names(final_train)
+final_test <- testing[names[1:52]]
+
+```
+
+```{r, echo = FALSE}
+rm(training)
+rm(training2)
+rm(testing)
+```
+
+## Cross-validation 
+
+Partioning the final training set to a test and training set for the model prediction using random sampling into a 60-40 split. 
+
+Errors will be estimated on the test set. 
+
+```{r}
+
+set.seed(1234)
+
+inTrain <- createDataPartition(final_train$classe, p = 0.6, list = FALSE)
+fTraining <- final_train[inTrain,]
+fTesting <- final_train[-inTrain,]
+dim(fTraining)
+
+```
+
+## Modelling
+
+We will try a couple of methods and choose the final model with the best accuracy. Pre-processing methods were explored but did not improve accuracy.
+
+1.  Using rpart
+
+This model gave poor accuracy results and is dismissed
+
+```{r}
+
+set.seed(2345)
+modelrp <- train(classe~., data = fTraining, method = "rpart")
+predictrp <- predict(modelrp, newdata = fTesting)
+confusionMatrix(predictrp, fTesting$classe)
+
+```
+
+
+```{r, echo = FALSE}
+fancyRpartPlot(modelrp$finalModel)
+
+```
+
+2. Using random forests
+
+This model has high accuracy but is time-consuming. Processing time was limited using the traincontrol method and limiting the number of trees. 
+
+```{r}
+
+set.seed(2345)
+start <- proc.time()
+fitControl <- trainControl(method = "cv", number = 3, allowParallel = T, verbose = F)
+modelrf <- train(classe~., data = fTraining, method = "rf", ntree = 100, trControl = fitControl)
+end <- proc.time()
+lapsed <- start - end
+lapsed
+
+predictrf <- predict(modelrf, newdata = fTesting)
+confusionMatrix(predictrf, fTesting$classe)
+
+```
+
+The out-of-sample error is 100 - 98.99%, which is about 1.01% 
+
+```{r, echo = FALSE}
+
+varImpPlot(modelrf$finalModel)
+plot(modelrf$finalModel, log = "y")
+
+```
+
+##Predictions on final 20 test cases
+
+```{r}
+
+predictfinal <- predict(modelrf, newdata = final_test)
+predictfinal
+
+```
+
+##Conclusion
+
+The final model has high accuracy rates of around 99% which suggest the classification of the final 20 test cases is correct. The importance plot of the different predictors suggest that the roll belt measurements, the pitch forearm and the yaw belt have the highest impact on classifying the exercise. Future models could be built with just the top 10-20 predictors instead of the full set of 52 measurements with little loss in predictive ability. 
+
+
+Notes
+
+PCA reduction and other pre-processing methods were attempted but did not improve accuracy when applied to rpart. 
+
+
+
