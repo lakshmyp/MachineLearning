@@ -21,7 +21,7 @@ The test data are available here:
 https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
 
 
-```{r}
+```{r, message=FALSE}
 library(caret)
 library(pamr)
 library(rattle)
@@ -30,11 +30,12 @@ library(randomForest)
 library(foreach)
 library(e1071)
 
+```
+```{r}
 training <- read.csv("pml-training.csv", na.strings = c("NA",""))
 testing <- read.csv("pml-testing.csv",na.strings = c("NA",""))
 dim(training)
 summary(complete.cases(training))
-
 ```
 
 There are 160 variables in the original set. We will cut this down to the required variables as well as columns that do not contain a large amount of NAs
@@ -106,7 +107,7 @@ fancyRpartPlot(modelrp$finalModel)
 
 2. Using random forests
 
-This model has high accuracy but is time-consuming. Processing time was limited using the traincontrol method and limiting the number of trees. 
+This model has high accuracy but is time-consuming. Processing time was limited using the traincontrol method and limiting the number of trees. The out-of-sample error is 100 - 98.9%, which is about 1.1% . Since the accuracy is quite high no other models were explored. 
 
 ```{r}
 
@@ -123,7 +124,7 @@ confusionMatrix(predictrf, fTesting$classe)
 
 ```
 
-The out-of-sample error is 100 - 98.99%, which is about 1.01% 
+
 
 ```{r, echo = FALSE}
 
@@ -146,9 +147,10 @@ predictfinal
 The final model has high accuracy rates of around 99% which suggest the classification of the final 20 test cases is correct. The importance plot of the different predictors suggest that the roll belt measurements, the pitch forearm and the yaw belt have the highest impact on classifying the exercise. Future models could be built with just the top 10-20 predictors instead of the full set of 52 measurements with little loss in predictive ability. 
 
 
-Notes
+##Notes
 
-PCA reduction and other pre-processing methods were attempted but did not improve accuracy when applied to rpart. 
+1. PCA reduction and other pre-processing methods were attempted but did not improve accuracy when applied to rpart. 
+2. Ntree is set to 100 and cv to 3 after multiple trials and errors to find the ideal timing to process the entire dataset. 
 
 
 
